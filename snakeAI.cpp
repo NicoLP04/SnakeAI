@@ -4,11 +4,14 @@
 #include <iostream>
 
 // Size of each block / pixel
-const int BLOCK_SIZE = 20;
+const int BLOCK_SIZE = 50;
 
 // Window size
-const int width = 1200;
-const int height = 800;
+const int width = 1000;
+const int height = 1000;
+
+// speed of the snake
+int speed = 10;
 
 // Direction enum
 enum Direction { UP, DOWN, LEFT, RIGHT };
@@ -58,12 +61,15 @@ class Snake {
         // get correct direction
         if (direction == Direction::UP && currentDirection == Direction::DOWN ||
             direction == Direction::DOWN && currentDirection == Direction::UP ||
-            direction == Direction::LEFT && currentDirection == Direction::RIGHT ||
-            direction == Direction::RIGHT && currentDirection == Direction::LEFT)
+            direction == Direction::LEFT &&
+                currentDirection == Direction::RIGHT ||
+            direction == Direction::RIGHT &&
+                currentDirection == Direction::LEFT)
             direction = currentDirection;
 
         // Move the head
-        body[0].move(directionMap.at(direction).first, directionMap.at(direction).second);
+        body[0].move(directionMap.at(direction).first,
+                     directionMap.at(direction).second);
 
         currentDirection = direction;
     }
@@ -175,20 +181,21 @@ class Game {
 
 void game() {
     // Create window
-    sf::RenderWindow window = sf::RenderWindow(sf::VideoMode(width, height), "Snake",
-                                               sf::Style::Titlebar | sf::Style::Close);
+    sf::RenderWindow window =
+        sf::RenderWindow(sf::VideoMode(width, height), "Snake",
+                         sf::Style::Titlebar | sf::Style::Close);
     window.setFramerateLimit(120);
     sf::Clock clock;
 
     // Create game object
     Game game(window);
-    int speed = 25;
 
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) window.close();
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) window.close();
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+                window.close();
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) game.reset();
             // increase speed
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Add))
@@ -204,7 +211,8 @@ void game() {
         // Play a step
         auto tuple = game.playStep();
         if (std::get<0>(tuple) == 1) {
-            std::cout << "Game Over! Score: " << std::get<1>(tuple) << std::endl;
+            std::cout << "Game Over! Score: " << std::get<1>(tuple)
+                      << std::endl;
             game.reset();
         }
     }
