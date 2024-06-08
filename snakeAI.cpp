@@ -40,32 +40,43 @@ class Snake {
         body.push_back(firstBody);
     }
 
-    int checkCollision() {
+    int checkCollision(sf::RectangleShape& pt) {
         // Check wall collision
-        if (body[0].getPosition().x < 0 || body[0].getPosition().x >= width ||
-            body[0].getPosition().y < 0 || body[0].getPosition().y >= height)
+        if (pt.getPosition().x < 0 || pt.getPosition().x >= width ||
+            pt.getPosition().y < 0 || pt.getPosition().y >= height)
             return 1;
 
         // Check body collision
         for (int i = 1; i < body.size(); i++)
-            if (body[0].getPosition() == body[i].getPosition()) return 1;
+            if (pt.getPosition() == body[i].getPosition()) return 1;
 
         return 0;
     }
 
-    void move(Direction direction) {
+    void move(std::vector<int> action) {
+        // [straight, left, right]
+        std::vector<Direction> clockwise = {Direction::RIGHT, Direction::DOWN,
+                                            Direction::LEFT, Direction::UP};
+
+        int idx = 0;
+        if (currentDirection == Direction::DOWN)
+            idx = 1;
+        else if (currentDirection == Direction::LEFT)
+            idx = 2;
+        else if (currentDirection == Direction::UP)
+            idx = 3;
+
+        Direction direction;
+        if (action[0] == 1)
+            direction = clockwise[idx];
+        else if (action[1] == 1)
+            direction = clockwise[(idx + 1) % 4];
+        else
+            direction = clockwise[(idx + 3) % 4];
+
         // Move the body
         for (int i = body.size() - 1; i > 0; i--)
             body[i].setPosition(body[i - 1].getPosition());
-
-        // get correct direction
-        if (direction == Direction::UP && currentDirection == Direction::DOWN ||
-            direction == Direction::DOWN && currentDirection == Direction::UP ||
-            direction == Direction::LEFT &&
-                currentDirection == Direction::RIGHT ||
-            direction == Direction::RIGHT &&
-                currentDirection == Direction::LEFT)
-            direction = currentDirection;
 
         // Move the head
         body[0].move(directionMap.at(direction).first,
@@ -89,6 +100,8 @@ class Snake {
     sf::RectangleShape& getHead() { return body[0]; }
 
     Direction getDirection() { return currentDirection; }
+
+    int getSize() { return body.size(); }
 
    private:
     std::vector<sf::RectangleShape> body;
@@ -123,6 +136,7 @@ class Game {
         text.setCharacterSize(24);
         text.setPosition(10, 10);
         text.setString("Score: " + std::to_string(score));
+        frameIteration = 0;
     }
 
     void reset() {
@@ -130,29 +144,26 @@ class Game {
         food = Food(400, 400);
         score = 0;
         text.setString("Score: " + std::to_string(score));
+        frameIteration = 0;
     }
 
-    std::tuple<int, int> playStep() {
+    std::tuple<int, int, int> playStep(std::vector<int> action) {
+        frameIteration++;
         // 1. Get the direction
-        Direction direction = snake.getDirection();
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
-            direction = Direction::UP;
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
-            direction = Direction::DOWN;
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
-            direction = Direction::LEFT;
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
-            direction = Direction::RIGHT;
-        }
 
         // 2. Move the snake
-        snake.move(direction);
+        snake.move(action);
 
         // 3. Check if game is over
-        if (snake.checkCollision() == 1) return {1, score};
+        if (snake.checkCollision(snake.getHead()) == 1 ||
+            frameIteration > 100 * snake.getSize())
+            return {-10, 1, score};
 
+        int reward = 0;
         // 4. Check if snake ate the food
         if (snake.getHead().getPosition() == food.getRect().getPosition()) {
+            frameIteration = 0;
+            reward = 10;
             text.setString("Score: " + std::to_string(++score));
             snake.grow();
             food = Food((rand() % (width / BLOCK_SIZE)) * BLOCK_SIZE,
@@ -167,7 +178,7 @@ class Game {
         window.display();
 
         // 6. Return game state and score
-        return {0, score};
+        return {reward, 0, score};
     }
 
    private:
@@ -177,6 +188,7 @@ class Game {
     sf::Font font;
     sf::Text text;
     sf::RenderWindow& window;
+    int frameIteration;
 };
 
 void game() {
@@ -199,9 +211,9 @@ void game() {
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) game.reset();
             // increase speed
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Add))
-                if (speed > 1) speed++;
+                if (speed < 100) speed++;
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Subtract))
-                if (speed < 100) speed--;
+                if (speed > 1) speed--;
         }
 
         // Check if it's time to play a step
@@ -209,8 +221,10 @@ void game() {
         clock.restart();
 
         // Play a step
-        auto tuple = game.playStep();
-        if (std::get<0>(tuple) == 1) {
+        std::vector<int> action = {1, 0, 0};
+        auto tuple = game.playStep(action);
+
+        if (std::get<1>(tuple) == 1) {
             std::cout << "Game Over! Score: " << std::get<1>(tuple)
                       << std::endl;
             game.reset();
