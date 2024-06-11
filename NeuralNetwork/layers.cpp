@@ -1,76 +1,95 @@
 #include "layers.h"
 
-// used to init random mWeights and biases
-double random(double x) {
-    // Create a random number generator engine
+#include "activations.h"
+
+Dense::Dense(int inputSize, int outputSize, ActivationFunction activationFunction)
+    : mInputSize(inputSize), mOutputSize(outputSize) {
+    mOutput.resize(outputSize);
+    mWeights.resize(inputSize * outputSize);
+    mBiases.resize(outputSize);
+    mActivationFunction = activationFunction;
+    mFirstMoment.resize(inputSize * outputSize + outputSize);
+    mSecondMoment.resize(inputSize * outputSize + outputSize);
+    mIteration = 0;
+
     std::random_device rd;
     std::mt19937 gen(rd());
+    std::normal_distribution<double> d(0.0, 1.0);
+    // std::uniform_real_distribution<double> d(-2, 2);
 
-    // Create a uniform distribution between -0.5 and 0.5
-    std::uniform_real_distribution<double> dis(0, 1);
-
-    // Generate and return a random value
-    return dis(gen);
+    for (double& weight : mWeights) weight = d(gen);
+    for (double& bias : mBiases) bias = d(gen);
 }
 
-Dense::Dense(int input_size, int output_size) {
-    mWeights = Matrix(output_size, input_size);
-    mBiases = Matrix(output_size, 1);
-
-    // assign random values
-    for (int i = 0; i < output_size; i++) {
-        for (int j = 0; j < input_size; j++) {
-            mWeights.set(i, j, random(0));
-        }
-        mBiases.set(i, 0, random(0));
+std::vector<double> Dense::forward(const std::vector<double>& input) {
+    if (input.size() != mInputSize) {
+        throw std::invalid_argument("Input size must match layer input size.");
     }
+
+    mInput = input;
+
+    for (int i = 0; i < mOutputSize; i++) {
+        mOutput[i] = mBiases[i];
+        for (int j = 0; j < mInputSize; j++) {
+            mOutput[i] += mWeights[i * mInputSize + j] * input[j];
+        }
+    }
+
+    return activationFunctions[mActivationFunction](mOutput);
 }
 
-Matrix Dense::forward(const Matrix& input) {
-    mInput = input.transpose();
-    return mWeights * mInput + mBiases;
-}
+std::vector<double> Dense::backward(const std::vector<double>& outputGradient, double learningRate, double beta1,
+                                    double beta2, double epsilon) {
+    if (outputGradient.size() != mOutputSize) {
+        throw std::invalid_argument("Output gradient size must match layer output size.");
+    }
 
-Matrix Dense::backward(const Matrix& outputGradient,
-                       const double learningRate) {
-    Matrix weightsGradient = outputGradient * mInput.transpose();
-    Matrix inputGradient = mWeights.transpose() * outputGradient;
+    // Compute activation prime
+    std::vector<double> activatedGradient = activationFunctionPrimes[mActivationFunction](mOutput, outputGradient);
+    std::vector<double> inputGradient(mInputSize, 0.0);
 
-    mWeights = mWeights - weightsGradient * learningRate;
-    mBiases = mBiases - outputGradient * learningRate;
+    // Compute input gradient and weight gradients
+    // for (int i = 0; i < mOutputSize; ++i) {
+    //     for (int j = 0; j < mInputSize; ++j) {
+    //         inputGradient[j] += mWeights[i * mInputSize + j] * activatedGradient[i];
+    //         mWeights[i * mInputSize + j] -= learningRate * activatedGradient[i] * mInput[j];
+    //     }
+    //     mBiases[i] -= learningRate * activatedGradient[i];
+    // }
+
+    // Update moments and gradients using Adam
+    mIteration++;
+    for (int i = 0; i < mOutputSize; ++i) {
+        for (int j = 0; j < mInputSize; ++j) {
+            inputGradient[j] += mWeights[i * mInputSize + j] * activatedGradient[i];
+
+            // Update first / second moment estimate
+            mFirstMoment[i * mInputSize + j] =
+                beta1 * mFirstMoment[i * mInputSize + j] + (1 - beta1) * activatedGradient[i] * mInput[j];
+            mSecondMoment[i * mInputSize + j] =
+                beta2 * mSecondMoment[i * mInputSize + j] + (1 - beta2) * pow(activatedGradient[i] * mInput[j], 2);
+
+            // Compute bias-corrected first / second moment estimate
+            double mHat = mFirstMoment[i * mInputSize + j] / (1 - pow(beta1, mIteration));
+            double vHat = mSecondMoment[i * mInputSize + j] / (1 - pow(beta2, mIteration));
+
+            // Update weights
+            mWeights[i * mInputSize + j] -= learningRate * mHat / (sqrt(vHat) + epsilon);
+        }
+
+        // Update first / second moment estimate
+        mFirstMoment[mOutputSize * mInputSize + i] =
+            beta1 * mFirstMoment[mOutputSize * mInputSize + i] + (1 - beta1) * activatedGradient[i];
+        mSecondMoment[mOutputSize * mInputSize + i] =
+            beta2 * mSecondMoment[mOutputSize * mInputSize + i] + (1 - beta2) * pow(activatedGradient[i], 2);
+
+        // Compute bias-corrected first / second moment estimate for biases
+        double mHatBias = mFirstMoment[mOutputSize * mInputSize + i] / (1 - pow(beta1, mIteration));
+        double vHatBias = mSecondMoment[mOutputSize * mInputSize + i] / (1 - pow(beta2, mIteration));
+
+        // Update biases
+        mBiases[i] -= learningRate * mHatBias / (sqrt(vHatBias) + epsilon);
+    }
 
     return inputGradient;
 }
-
-Activation::Activation(double (*activation)(double),
-                       double (*activationPrime)(double)) {
-    mActivation = activation;
-    mActivationPrime = activationPrime;
-}
-
-Matrix Activation::forward(const Matrix& input) {
-    mInput = input.transpose();
-    return mInput.applyFunction(mActivation);
-}
-
-Matrix Activation::backward(const Matrix& outputGradient,
-                            const double learningRate) {
-    return outputGradient.multiplyElementWise(
-        mInput.transpose().applyFunction(mActivationPrime));
-}
-
-Sigmoid::Sigmoid() : Activation(sigmoid, sigmoidPrime) {}
-double Sigmoid::sigmoid(double x) { return 1 / (1 + exp(-x)); }
-double Sigmoid::sigmoidPrime(double x) { return sigmoid(x) * (1 - sigmoid(x)); }
-
-Relu::Relu() : Activation(relu, reluPrime) {}
-double Relu::relu(double x) { return x > 0 ? x : 0; }
-double Relu::reluPrime(double x) { return x > 0 ? 1 : 0; }
-
-Softmax::Softmax() : Activation(softmax, softmaxPrime) {}
-double Softmax::softmax(double x) { return exp(x); }
-double Softmax::softmaxPrime(double x) { return softmax(x) * (1 - softmax(x)); }
-
-Tanh::Tanh() : Activation(tanh, tanhPrime) {}
-double Tanh::tanh(double x) { return std::tanh(x); }
-double Tanh::tanhPrime(double x) { return 1 - std::pow(tanh(x), 2); }

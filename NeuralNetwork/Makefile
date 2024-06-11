@@ -1,2 +1,2 @@
-all: xor.cpp matrix.cpp neuralNetwork.cpp losses.cpp layers.cpp
-	g++ xor.cpp matrix.cpp neuralNetwork.cpp losses.cpp layers.cpp -o xor
+all: activations.cpp layers.cpp losses.cpp neuralNetwork.cpp xor.cpp
+	g++ activations.cpp layers.cpp losses.cpp neuralNetwork.cpp xor.cpp -o xor
