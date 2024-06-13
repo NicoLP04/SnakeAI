@@ -3,12 +3,20 @@
 #include <tuple>
 #include <vector>
 
-#include "NeuralNetwork/neuralNetwork.h"
-#include "snake.h"
+#include "model.h"
+#include "snakeAI.h"
 
 const int MAX_MEMORY = 100000;
 const int BATCH_SIZE = 1000;
 const double LEARNING_RATE = 0.001;
+
+struct Node {
+    std::vector<int> state;
+    std::vector<int> nextState;
+    std::vector<int> action;
+    int reward;
+    bool done;
+};
 
 class Agent {
    public:
@@ -16,32 +24,27 @@ class Agent {
 
     std::vector<int> getState(Game& game);
 
-    void remember(std::vector<int> state, std::vector<int> action, int reward,
-                  std::vector<int> nextState, bool done);
+    void remember(const Node& node);
 
     void trainLongMemory();
-    void trainShortMemory(std::vector<int> state, std::vector<int> action,
-                          int reward, std::vector<int> nextState, bool done);
+    void trainShortMemory(const Node& node);
 
     std::vector<int> getAction(std::vector<int> state);
 
     int mGames;
 
    private:
-    std::deque<std::tuple<std::vector<int>, std::vector<int>, int,
-                          std::vector<int>, bool>>
-        mMemory;
+    std::deque<Node> mMemory;
     double mEpsilon;
-    double mGamma = 0;
-    NeuralNetwork mModel;
+    double mGamma;
+    Model mModel;
 };
 
-Agent::Agent() {
+Agent::Agent() : mModel() {
     mGames = 0;
     mEpsilon = 0;  // control randomness
     mGamma = 0;    // discount rate
     mMemory = {};
-    // TODO: Model, trainer
 }
 
 std::vector<int> Agent::getState(Game& game) {
@@ -97,27 +100,35 @@ std::vector<int> Agent::getState(Game& game) {
     return state;
 }
 
-void Agent::remember(std::vector<int> state, std::vector<int> action,
-                     int reward, std::vector<int> nextState, bool done) {
-    mMemory.push_back({state, action, reward, nextState, done});
+void Agent::remember(const Node& node) {
+    mMemory.push_back(node);
     if (mMemory.size() > MAX_MEMORY) mMemory.pop_front();
 }
 
 void Agent::trainLongMemory() {
+    std::vector<Node> miniSample;
     if (mMemory.size() > BATCH_SIZE) {
-        std::vector<std::vector<int>> miniBatch;
         int memoryLength = mMemory.size();
         for (int i = 0; i < BATCH_SIZE; i++) {
             int randomIndex = rand() % memoryLength;
-            miniBatch.push_back(std::get<0>(mMemory[randomIndex]));
+            miniSample.push_back(mMemory[randomIndex]);
         }
+    } else {
+        for (int i = 0; i < mMemory.size(); i++) {
+            miniSample.push_back(mMemory[i]);
+        }
+    }
+
+    for (int i = 0; i < miniSample.size(); i++) {
+        mModel.trainStep(miniSample[i].state, miniSample[i].nextState,
+                         miniSample[i].action, miniSample[i].reward,
+                         miniSample[i].done);
     }
 }
 
-void Agent::trainShortMemory(std::vector<int> state, std::vector<int> action,
-                             int reward, std::vector<int> nextState,
-                             bool done) {
-    mModel.train(state, action, reward, nextState, done);
+void Agent::trainShortMemory(const Node& node) {
+    mModel.trainStep(node.state, node.nextState, node.action, node.reward,
+                     node.done);
 }
 
 std::vector<int> Agent::getAction(std::vector<int> state) {
@@ -129,9 +140,8 @@ std::vector<int> Agent::getAction(std::vector<int> state) {
         action[randomIndex] = 1;
     } else {
         std::vector<double> state0(state.size());
-        for (int i = 0; i < state.size(); i++) {
-            state0[i] = state[i];
-        }
+        for (int i = 0; i < state.size(); i++) state0[i] = state[i];
+
         std::vector<double> predicted = mModel.predict(state0);
         int maxIndex =
             std::distance(predicted.begin(),
@@ -143,13 +153,38 @@ std::vector<int> Agent::getAction(std::vector<int> state) {
 }
 
 void train() {
+    // Create window
+    sf::RenderWindow window =
+        sf::RenderWindow(sf::VideoMode(width, height), "Snake",
+                         sf::Style::Titlebar | sf::Style::Close);
+    window.setFramerateLimit(120);
+    sf::Clock clock;
+
+    Game game(window);
+    Agent agent{};
+
+    int speed = 10;
     int record = 0;
     int totalScore = 0;
 
-    Agent agent{};
-    Game game{};
+    while (window.isOpen()) {
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed) window.close();
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+                window.close();
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) game.reset();
+            // increase speed
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Add))
+                if (speed < 100) speed++;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Subtract))
+                if (speed > 1) speed--;
+        }
 
-    while (true) {
+        // Check if it's time to play a step
+        if (clock.getElapsedTime().asSeconds() < 1. / speed) continue;
+        clock.restart();
+
         // Get old state
         std::vector<int> stateOld = agent.getState(game);
 
@@ -157,20 +192,21 @@ void train() {
         std::vector<int> action = agent.getAction(stateOld);
 
         // Perform move and get new state
-        std::tuple<int, int, int> gameData = game.playStep(action);
+        std::tuple<int, bool, int> gameData = game.playStep(action);
         int reward = std::get<0>(gameData);
-        int done = std::get<1>(gameData);
+        bool done = std::get<1>(gameData);
         int score = std::get<2>(gameData);
         std::vector<int> stateNew = agent.getState(game);
 
         // Train short memory
-        agent.trainShortMemory(stateOld, action, reward, stateNew, done);
+        Node node{stateOld, stateNew, action, reward, done};
+        agent.trainShortMemory(node);
 
         // Remember
-        agent.remember(stateOld, action, reward, agent.getState(game), done);
+        agent.remember(node);
 
         // Train long memory
-        if (done == 1) {
+        if (done == true) {
             game.reset();
             agent.mGames += 1;
             agent.trainLongMemory();
@@ -182,11 +218,6 @@ void train() {
 
             std::cout << "Game: " << agent.mGames << " Score: " << score
                       << " Record: " << record << std::endl;
-        }
-
-        // Print score
-        if (std::get<0>(gameData) > record) {
-            record = std::get<0>(gameData);
         }
     }
 }

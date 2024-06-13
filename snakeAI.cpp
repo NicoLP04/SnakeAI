@@ -1,4 +1,4 @@
-#include "snake.h"
+#include "snakeAI.h"
 
 Snake::Snake(Direction _currentDirection) {
     currentDirection = _currentDirection;
@@ -101,7 +101,7 @@ void Game::reset() {
     frameIteration = 0;
 }
 
-std::tuple<int, int, int> Game::playStep(std::vector<int> action) {
+std::tuple<int, bool, int> Game::playStep(std::vector<int> action) {
     frameIteration++;
     // 1. Get the direction
 
@@ -111,7 +111,7 @@ std::tuple<int, int, int> Game::playStep(std::vector<int> action) {
     // 3. Check if game is over
     if (snake.checkCollision(snake.getHead()) == 1 ||
         frameIteration > 100 * snake.getSize())
-        return {-10, 1, score};
+        return {-10, true, score};
 
     int reward = 0;
     // 4. Check if snake ate the food
@@ -132,52 +132,5 @@ std::tuple<int, int, int> Game::playStep(std::vector<int> action) {
     window.display();
 
     // 6. Return game state and score
-    return {reward, 0, score};
-}
-
-void game() {
-    // Create window
-    sf::RenderWindow window =
-        sf::RenderWindow(sf::VideoMode(width, height), "Snake",
-                         sf::Style::Titlebar | sf::Style::Close);
-    window.setFramerateLimit(120);
-    sf::Clock clock;
-
-    // Create game object
-    Game game(window);
-
-    while (window.isOpen()) {
-        sf::Event event;
-        while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) window.close();
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
-                window.close();
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) game.reset();
-            // increase speed
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Add))
-                if (speed < 100) speed++;
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Subtract))
-                if (speed > 1) speed--;
-        }
-
-        // Check if it's time to play a step
-        if (clock.getElapsedTime().asSeconds() < 1. / speed) continue;
-        clock.restart();
-
-        // Play a step
-        std::vector<int> action = {1, 0, 0};
-        auto tuple = game.playStep(action);
-
-        if (std::get<1>(tuple) == 1) {
-            std::cout << "Game Over! Score: " << std::get<1>(tuple)
-                      << std::endl;
-            game.reset();
-        }
-    }
-}
-
-int main() {
-    srand(time(NULL));
-    game();
-    return 0;
+    return {reward, false, score};
 }

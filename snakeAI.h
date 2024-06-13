@@ -10,9 +10,6 @@ const int BLOCK_SIZE = 50;
 const int width = 1000;
 const int height = 1000;
 
-// speed of the snake
-int speed = 10;
-
 // Direction enum
 enum Direction { UP, DOWN, LEFT, RIGHT };
 const std::map<Direction, std::pair<int, int>> directionMap = {
@@ -54,7 +51,7 @@ class Game {
     Game(sf::RenderWindow& _window);
 
     void reset();
-    std::tuple<int, int, int> playStep(std::vector<int> action);
+    std::tuple<int, bool, int> playStep(std::vector<int> action);
 
     Snake snake;
     Food food;
