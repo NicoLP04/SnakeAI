@@ -3,8 +3,8 @@
 #include <tuple>
 #include <vector>
 
-#include "model.h"
-#include "snakeAI.h"
+#include "../include/model.h"
+#include "../include/snakeAI.h"
 
 const int MAX_MEMORY = 100000;
 const int BATCH_SIZE = 1000;
@@ -109,17 +109,17 @@ void Agent::trainLongMemory() {
     std::vector<Node> miniSample;
     if (mMemory.size() > BATCH_SIZE) {
         int memoryLength = mMemory.size();
-        for (int i = 0; i < BATCH_SIZE; i++) {
+        for (size_t i = 0; i < BATCH_SIZE; i++) {
             int randomIndex = rand() % memoryLength;
             miniSample.push_back(mMemory[randomIndex]);
         }
     } else {
-        for (int i = 0; i < mMemory.size(); i++) {
+        for (size_t i = 0; i < mMemory.size(); i++) {
             miniSample.push_back(mMemory[i]);
         }
     }
 
-    for (int i = 0; i < miniSample.size(); i++) {
+    for (size_t i = 0; i < miniSample.size(); i++) {
         mModel.trainStep(miniSample[i].state, miniSample[i].nextState,
                          miniSample[i].action, miniSample[i].reward,
                          miniSample[i].done);
@@ -140,7 +140,7 @@ std::vector<int> Agent::getAction(std::vector<int> state) {
         action[randomIndex] = 1;
     } else {
         std::vector<double> state0(state.size());
-        for (int i = 0; i < state.size(); i++) state0[i] = state[i];
+        for (size_t i = 0; i < state.size(); i++) state0[i] = state[i];
 
         std::vector<double> predicted = mModel.predict(state0);
         int maxIndex =
@@ -165,7 +165,6 @@ void train() {
 
     int speed = 10;
     int record = 0;
-    int totalScore = 0;
 
     while (window.isOpen()) {
         sf::Event event;

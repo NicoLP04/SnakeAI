@@ -1,6 +1,6 @@
 #pragma once
 
-#include "NeuralNetwork/neuralNetwork.h"
+#include "neuralNetwork.h"
 
 class Model {
    public:

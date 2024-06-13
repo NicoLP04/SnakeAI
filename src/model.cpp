@@ -1,4 +1,4 @@
-#include "model.h"
+#include "../include/model.h"
 
 Model::Model() : mNN(NeuralNetwork(MSE)) {
     // mNN.addLayer(new Dense(11, 120, SIGMOID))

@@ -1,8 +1,9 @@
-#include "layers.h"
+#include "../include/layers.h"
 
-#include "activations.h"
+#include "../include/activations.h"
 
-Dense::Dense(int inputSize, int outputSize, ActivationFunction activationFunction)
+Dense::Dense(int inputSize, int outputSize,
+             ActivationFunction activationFunction)
     : mInputSize(inputSize), mOutputSize(outputSize) {
     mOutput.resize(outputSize);
     mWeights.resize(inputSize * outputSize);
@@ -38,21 +39,25 @@ std::vector<double> Dense::forward(const std::vector<double>& input) {
     return activationFunctions[mActivationFunction](mOutput);
 }
 
-std::vector<double> Dense::backward(const std::vector<double>& outputGradient, double learningRate, double beta1,
+std::vector<double> Dense::backward(const std::vector<double>& outputGradient,
+                                    double learningRate, double beta1,
                                     double beta2, double epsilon) {
     if (outputGradient.size() != mOutputSize) {
-        throw std::invalid_argument("Output gradient size must match layer output size.");
+        throw std::invalid_argument(
+            "Output gradient size must match layer output size.");
     }
 
     // Compute activation prime
-    std::vector<double> activatedGradient = activationFunctionPrimes[mActivationFunction](mOutput, outputGradient);
+    std::vector<double> activatedGradient =
+        activationFunctionPrimes[mActivationFunction](mOutput, outputGradient);
     std::vector<double> inputGradient(mInputSize, 0.0);
 
     // Compute input gradient and weight gradients
     // for (int i = 0; i < mOutputSize; ++i) {
     //     for (int j = 0; j < mInputSize; ++j) {
-    //         inputGradient[j] += mWeights[i * mInputSize + j] * activatedGradient[i];
-    //         mWeights[i * mInputSize + j] -= learningRate * activatedGradient[i] * mInput[j];
+    //         inputGradient[j] += mWeights[i * mInputSize + j] *
+    //         activatedGradient[i]; mWeights[i * mInputSize + j] -=
+    //         learningRate * activatedGradient[i] * mInput[j];
     //     }
     //     mBiases[i] -= learningRate * activatedGradient[i];
     // }
@@ -61,31 +66,41 @@ std::vector<double> Dense::backward(const std::vector<double>& outputGradient, d
     mIteration++;
     for (int i = 0; i < mOutputSize; ++i) {
         for (int j = 0; j < mInputSize; ++j) {
-            inputGradient[j] += mWeights[i * mInputSize + j] * activatedGradient[i];
+            inputGradient[j] +=
+                mWeights[i * mInputSize + j] * activatedGradient[i];
 
             // Update first / second moment estimate
             mFirstMoment[i * mInputSize + j] =
-                beta1 * mFirstMoment[i * mInputSize + j] + (1 - beta1) * activatedGradient[i] * mInput[j];
+                beta1 * mFirstMoment[i * mInputSize + j] +
+                (1 - beta1) * activatedGradient[i] * mInput[j];
             mSecondMoment[i * mInputSize + j] =
-                beta2 * mSecondMoment[i * mInputSize + j] + (1 - beta2) * pow(activatedGradient[i] * mInput[j], 2);
+                beta2 * mSecondMoment[i * mInputSize + j] +
+                (1 - beta2) * pow(activatedGradient[i] * mInput[j], 2);
 
             // Compute bias-corrected first / second moment estimate
-            double mHat = mFirstMoment[i * mInputSize + j] / (1 - pow(beta1, mIteration));
-            double vHat = mSecondMoment[i * mInputSize + j] / (1 - pow(beta2, mIteration));
+            double mHat =
+                mFirstMoment[i * mInputSize + j] / (1 - pow(beta1, mIteration));
+            double vHat = mSecondMoment[i * mInputSize + j] /
+                          (1 - pow(beta2, mIteration));
 
             // Update weights
-            mWeights[i * mInputSize + j] -= learningRate * mHat / (sqrt(vHat) + epsilon);
+            mWeights[i * mInputSize + j] -=
+                learningRate * mHat / (sqrt(vHat) + epsilon);
         }
 
         // Update first / second moment estimate
         mFirstMoment[mOutputSize * mInputSize + i] =
-            beta1 * mFirstMoment[mOutputSize * mInputSize + i] + (1 - beta1) * activatedGradient[i];
+            beta1 * mFirstMoment[mOutputSize * mInputSize + i] +
+            (1 - beta1) * activatedGradient[i];
         mSecondMoment[mOutputSize * mInputSize + i] =
-            beta2 * mSecondMoment[mOutputSize * mInputSize + i] + (1 - beta2) * pow(activatedGradient[i], 2);
+            beta2 * mSecondMoment[mOutputSize * mInputSize + i] +
+            (1 - beta2) * pow(activatedGradient[i], 2);
 
         // Compute bias-corrected first / second moment estimate for biases
-        double mHatBias = mFirstMoment[mOutputSize * mInputSize + i] / (1 - pow(beta1, mIteration));
-        double vHatBias = mSecondMoment[mOutputSize * mInputSize + i] / (1 - pow(beta2, mIteration));
+        double mHatBias = mFirstMoment[mOutputSize * mInputSize + i] /
+                          (1 - pow(beta1, mIteration));
+        double vHatBias = mSecondMoment[mOutputSize * mInputSize + i] /
+                          (1 - pow(beta2, mIteration));
 
         // Update biases
         mBiases[i] -= learningRate * mHatBias / (sqrt(vHatBias) + epsilon);

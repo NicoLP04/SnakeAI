@@ -1,4 +1,4 @@
-#include "snakeAI.h"
+#include "../include/snakeAI.h"
 
 Snake::Snake(Direction _currentDirection) {
     currentDirection = _currentDirection;
@@ -84,10 +84,10 @@ Game::Game(sf::RenderWindow& _window)
     : snake(Direction::RIGHT), food(400, 400), window(_window) {
     // Initialize score, font and text
     score = 0;
-    font.loadFromFile("arial.ttf");
+    font.loadFromFile("fonts/arial.ttf");
     text.setFillColor(sf::Color::White);
     text.setFont(font);
-    text.setCharacterSize(24);
+    text.setCharacterSize(50);
     text.setPosition(10, 10);
     text.setString("Score: " + std::to_string(score));
     frameIteration = 0;

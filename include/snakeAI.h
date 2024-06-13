@@ -4,7 +4,7 @@
 #include <iostream>
 //
 // Size of each block / pixel
-const int BLOCK_SIZE = 50;
+const int BLOCK_SIZE = 100;
 
 // Window size
 const int width = 1000;
