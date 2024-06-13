@@ -1,13 +1,13 @@
-#include <SFML/Graphics/RectangleShape.hpp>
 #include <deque>
+#include <random>
 #include <tuple>
 #include <vector>
 
 #include "../include/model.h"
 #include "../include/snakeAI.h"
 
-const int MAX_MEMORY = 100000;
-const int BATCH_SIZE = 1000;
+const size_t MAX_MEMORY = 100000;
+const size_t BATCH_SIZE = 1000;
 const double LEARNING_RATE = 0.001;
 const double GAMMA = 0.9;
 
@@ -106,23 +106,28 @@ void Agent::remember(const Node& node) {
 
 void Agent::trainLongMemory() {
     std::vector<Node> miniSample;
-    if (mMemory.size() > BATCH_SIZE) {
-        int memoryLength = mMemory.size();
-        for (size_t i = 0; i < BATCH_SIZE; i++) {
-            int randomIndex = rand() % memoryLength;
-            miniSample.push_back(mMemory[randomIndex]);
-        }
-    } else {
-        for (size_t i = 0; i < mMemory.size(); i++) {
-            miniSample.push_back(mMemory[i]);
-        }
-    }
 
+    // Convert deque to vector for shuffling and sampling
+    std::vector<Node> memoryVector(mMemory.begin(), mMemory.end());
+
+    // Shuffle memoryVector to improve randomness
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::shuffle(memoryVector.begin(), memoryVector.end(), gen);
+
+    // Select BATCH_SIZE samples or all mMemory if smaller
+    size_t batchSize = std::min(BATCH_SIZE, memoryVector.size());
+    miniSample.assign(memoryVector.begin(), memoryVector.begin() + batchSize);
+
+    // Train the model on the mini batch
     for (size_t i = 0; i < miniSample.size(); i++) {
         mModel.trainStep(miniSample[i].state, miniSample[i].nextState,
                          miniSample[i].action, miniSample[i].reward,
                          miniSample[i].done);
     }
+
+    // Optionally clear miniSample to manage memory
+    miniSample.clear();
 }
 
 void Agent::trainShortMemory(const Node& node) {
@@ -176,7 +181,7 @@ void train() {
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) game.reset();
             // increase speed
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Add))
-                if (speed < 100) speed++;
+                if (speed < 150) speed++;
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Subtract))
                 if (speed > 1) speed--;
         }

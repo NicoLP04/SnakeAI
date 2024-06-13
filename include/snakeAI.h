@@ -4,11 +4,11 @@
 #include <iostream>
 //
 // Size of each block / pixel
-const int BLOCK_SIZE = 100;
+const int BLOCK_SIZE = 200;
 
 // Window size
-const int width = 1000;
-const int height = 1000;
+const int width = 1200;
+const int height = 1200;
 
 // Direction enum
 enum Direction { UP, DOWN, LEFT, RIGHT };
@@ -40,6 +40,7 @@ class Food {
    public:
     Food(int x, int y);
     sf::RectangleShape& getRect() { return rect; }
+    void changePosition(int x, int y);
     void draw(sf::RenderWindow& window) { window.draw(rect); }
 
    private:

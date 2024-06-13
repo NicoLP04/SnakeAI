@@ -82,6 +82,8 @@ Food::Food(int x, int y) {
     rect.setFillColor(sf::Color(255, 0, 0));
 }
 
+void Food::changePosition(int x, int y) { rect.setPosition(x, y); }
+
 Game::Game(sf::RenderWindow& _window)
     : snake(Direction::RIGHT), food(400, 400), window(_window) {
     // Initialize score, font and text
@@ -122,13 +124,14 @@ std::tuple<int, bool, int> Game::playStep(std::vector<int> action) {
         text.setString("Score: " + std::to_string(++score));
         snake.grow();
 
-        // food = Food((rand() % (width / BLOCK_SIZE)) * BLOCK_SIZE,
-        //             (rand() % (height / BLOCK_SIZE)) * BLOCK_SIZE);
+        int x = food.getRect().getPosition().x;
+        int y = food.getRect().getPosition().y;
 
         do {
-            food = Food((rand() % (width / BLOCK_SIZE)) * BLOCK_SIZE,
-                        (rand() % (height / BLOCK_SIZE)) * BLOCK_SIZE);
-        } while (snake.checkCollision(food.getRect()) == 1);
+            food.changePosition((rand() % (width / BLOCK_SIZE)) * BLOCK_SIZE,
+                                (rand() % (height / BLOCK_SIZE)) * BLOCK_SIZE);
+        } while (snake.checkCollision(food.getRect()) == 1 ||
+                 food.getRect().getPosition() == sf::Vector2f(x, y));
     }
 
     // 5. Update all the objects
