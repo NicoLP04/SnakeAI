@@ -9,6 +9,7 @@
 const int MAX_MEMORY = 100000;
 const int BATCH_SIZE = 1000;
 const double LEARNING_RATE = 0.001;
+const double GAMMA = 0.9;
 
 struct Node {
     std::vector<int> state;
@@ -36,14 +37,12 @@ class Agent {
    private:
     std::deque<Node> mMemory;
     double mEpsilon;
-    double mGamma;
     Model mModel;
 };
 
-Agent::Agent() : mModel() {
+Agent::Agent() : mModel(LEARNING_RATE, GAMMA) {
     mGames = 0;
     mEpsilon = 0;  // control randomness
-    mGamma = 0;    // discount rate
     mMemory = {};
 }
 
@@ -132,7 +131,8 @@ void Agent::trainShortMemory(const Node& node) {
 }
 
 std::vector<int> Agent::getAction(std::vector<int> state) {
-    mEpsilon = 80 - mGames;
+    // mEpsilon = 80 - mGames;
+    mEpsilon = std::max(0.1, 1.0 - (mGames / 500.0));  // Linearly decay epsilon
     std::vector<int> action = {0, 0, 0};
 
     if (rand() % 200 < mEpsilon) {
@@ -143,9 +143,10 @@ std::vector<int> Agent::getAction(std::vector<int> state) {
         for (size_t i = 0; i < state.size(); i++) state0[i] = state[i];
 
         std::vector<double> predicted = mModel.predict(state0);
-        int maxIndex =
-            std::distance(predicted.begin(),
-                          std::max_element(predicted.begin(), predicted.end()));
+        int maxIndex = 0;
+        for (size_t i = 1; i < predicted.size(); i++)
+            if (predicted[i] > predicted[maxIndex]) maxIndex = i;
+
         action[maxIndex] = 1;
     }
 

@@ -23,7 +23,7 @@ Dense::Dense(int inputSize, int outputSize,
 }
 
 std::vector<double> Dense::forward(const std::vector<double>& input) {
-    if (input.size() != mInputSize) {
+    if (input.size() != (size_t)mInputSize) {
         throw std::invalid_argument("Input size must match layer input size.");
     }
 
@@ -42,7 +42,7 @@ std::vector<double> Dense::forward(const std::vector<double>& input) {
 std::vector<double> Dense::backward(const std::vector<double>& outputGradient,
                                     double learningRate, double beta1,
                                     double beta2, double epsilon) {
-    if (outputGradient.size() != mOutputSize) {
+    if (outputGradient.size() != (size_t)mOutputSize) {
         throw std::invalid_argument(
             "Output gradient size must match layer output size.");
     }

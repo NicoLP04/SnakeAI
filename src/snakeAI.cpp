@@ -1,5 +1,7 @@
 #include "../include/snakeAI.h"
 
+#include <cstddef>
+
 Snake::Snake(Direction _currentDirection) {
     currentDirection = _currentDirection;
 
@@ -24,7 +26,7 @@ int Snake::checkCollision(sf::RectangleShape& pt) {
         return 1;
 
     // Check body collision
-    for (int i = 1; i < body.size(); i++)
+    for (size_t i = 1; i < body.size(); i++)
         if (pt.getPosition() == body[i].getPosition()) return 1;
 
     return 0;
@@ -103,7 +105,6 @@ void Game::reset() {
 
 std::tuple<int, bool, int> Game::playStep(std::vector<int> action) {
     frameIteration++;
-    // 1. Get the direction
 
     // 2. Move the snake
     snake.move(action);
@@ -120,8 +121,14 @@ std::tuple<int, bool, int> Game::playStep(std::vector<int> action) {
         reward = 10;
         text.setString("Score: " + std::to_string(++score));
         snake.grow();
-        food = Food((rand() % (width / BLOCK_SIZE)) * BLOCK_SIZE,
-                    (rand() % (height / BLOCK_SIZE)) * BLOCK_SIZE);
+
+        // food = Food((rand() % (width / BLOCK_SIZE)) * BLOCK_SIZE,
+        //             (rand() % (height / BLOCK_SIZE)) * BLOCK_SIZE);
+
+        do {
+            food = Food((rand() % (width / BLOCK_SIZE)) * BLOCK_SIZE,
+                        (rand() % (height / BLOCK_SIZE)) * BLOCK_SIZE);
+        } while (snake.checkCollision(food.getRect()) == 1);
     }
 
     // 5. Update all the objects

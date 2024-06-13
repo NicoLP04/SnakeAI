@@ -1,12 +1,11 @@
 #include "../include/model.h"
 
-Model::Model() : mNN(NeuralNetwork(MSE)) {
-    // mNN.addLayer(new Dense(11, 120, SIGMOID))
-    //     .addLayer(new Dense(120, 120, SIGMOID))
-    //     .addLayer(new Dense(120, 3, SIGMOID));
+Model::Model(double learningRate, double gamma)
+    : mNN(NeuralNetwork(MSE)), learningRate(learningRate), gamma(gamma) {
+    // mNN.addLayer(new Dense(11, 64, RELU))
+    //     .addLayer(new Dense(64, 64, RELU))
+    //     .addLayer(new Dense(64, 3, SOFTMAX));
     mNN.addLayer(new Dense(11, 256, RELU)).addLayer(new Dense(256, 3, SOFTMAX));
-    learningRate = 0.001;
-    gamma = 0.9;
 }
 
 void Model::trainStep(std::vector<int> state, std::vector<int> nextState,
@@ -31,7 +30,7 @@ void Model::trainStep(std::vector<int> state, std::vector<int> nextState,
 
     int idx = 0;
     double max = actionD[0];
-    for (int i = 1; i < actionD.size(); i++) {
+    for (size_t i = 1; i < actionD.size(); i++) {
         if (actionD[i] > max) {
             max = actionD[i];
             idx = i;
@@ -40,7 +39,8 @@ void Model::trainStep(std::vector<int> state, std::vector<int> nextState,
 
     target[idx] = QNew;
 
-    double instanceError = lossFunctions[mNN.mLossFunction](target, prediction);
+    // double instanceError = lossFunctions[mNN.mLossFunction](target,
+    // prediction);
 
     std::vector<double> gradient =
         lossFunctionPrimes[mNN.mLossFunction](target, prediction);
